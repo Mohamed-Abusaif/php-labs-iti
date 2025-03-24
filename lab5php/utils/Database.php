@@ -61,7 +61,7 @@ class Database
         }
     }
 
-    public function update($table, $id, $fields, $values)
+    public function update($table, $email, $fields, $values)
     {
         try {
             if (!$this->pdo) {
@@ -69,8 +69,8 @@ class Database
             }
 
             $setClause = implode('=?,', $fields) . '=?';
-            $values[] = $id;
-            $sql = "UPDATE {$table} SET {$setClause} WHERE id = ?";
+            $values[] = $email;
+            $sql = "UPDATE {$table} SET {$setClause} WHERE Email = ?";
 
             $stmt = $this->pdo->prepare($sql);
             return $stmt->execute($values);
@@ -79,16 +79,16 @@ class Database
         }
     }
 
-    public function delete($table, $id)
+    public function delete($table, $email)
     {
         try {
             if (!$this->pdo) {
                 $this->connect();
             }
 
-            $sql = "DELETE FROM {$table} WHERE id = ?";
+            $sql = "DELETE FROM {$table} WHERE Email = ?";
             $stmt = $this->pdo->prepare($sql);
-            return $stmt->execute([$id]);
+            return $stmt->execute([$email]);
         } catch (Exception $e) {
             throw new Exception("Delete failed: " . $e->getMessage());
         }

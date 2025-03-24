@@ -1,25 +1,27 @@
 <?php
-require_once __DIR__ . '/../utils/db.php';
+require_once __DIR__ . '/../utils/Database.php';
+
+function get_db()
+{
+    static $db = null;
+    if ($db === null) {
+        $db = new Database();
+    }
+    return $db;
+}
 
 function save_user($name, $email, $password, $room, $profile_picture = null)
 {
     try {
-        $pdo = get_db_connection();
-
-        $sql = "INSERT INTO User (Name, Email, Password, Room_No, Profile_Picture) 
-                VALUES (:name, :email, :password, :room, :profile_picture)";
-
-        $stmt = $pdo->prepare($sql);
+        $db = get_db();
         $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-        return $stmt->execute([
-            ':name' => $name,
-            ':email' => $email,
-            ':password' => $hashed_password,
-            ':room' => $room,
-            ':profile_picture' => $profile_picture
-        ]);
-    } catch (PDOException $e) {
+        return $db->insert(
+            'User',
+            ['Name', 'Email', 'Password', 'Room_No', 'Profile_Picture'],
+            [$name, $email, $hashed_password, $room, $profile_picture]
+        );
+    } catch (Exception $e) {
         error_log("Database error in save_user: " . $e->getMessage());
         return false;
     }
@@ -28,10 +30,9 @@ function save_user($name, $email, $password, $room, $profile_picture = null)
 function get_all_users()
 {
     try {
-        $pdo = get_db_connection();
-        $stmt = $pdo->query("SELECT * FROM User ORDER BY Name");
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
+        $db = get_db();
+        return $db->select('User', '*', null, []);
+    } catch (Exception $e) {
         error_log("Database error in get_all_users: " . $e->getMessage());
         return [];
     }
@@ -40,12 +41,10 @@ function get_all_users()
 function find_user_by_email($email)
 {
     try {
-        $pdo = get_db_connection();
-        $stmt = $pdo->prepare("SELECT * FROM User WHERE Email = :email");
-        $stmt->execute([':email' => $email]);
-        $temp_var = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $temp_var;
-    } catch (PDOException $e) {
+        $db = get_db();
+        $result = $db->select('User', '*', 'Email = ?', [$email]);
+        return $result ? $result[0] : false;
+    } catch (Exception $e) {
         error_log("Database error in find_user_by_email: " . $e->getMessage());
         return false;
     }
@@ -54,30 +53,17 @@ function find_user_by_email($email)
 function update_user_by_email($current_email, $name, $email, $room, $profile_picture = null)
 {
     try {
-        $pdo = get_db_connection();
-
-        $sql = "UPDATE User SET 
-                Name = :name,
-                Email = :email,
-                Room_No = :room";
-
-        $params = [
-            ':current_email' => $current_email,
-            ':name' => $name,
-            ':email' => $email,
-            ':room' => $room
-        ];
+        $db = get_db();
+        $fields = ['Name', 'Email', 'Room_No'];
+        $values = [$name, $email, $room];
 
         if ($profile_picture !== null) {
-            $sql .= ", Profile_Picture = :profile_picture";
-            $params[':profile_picture'] = $profile_picture;
+            $fields[] = 'Profile_Picture';
+            $values[] = $profile_picture;
         }
 
-        $sql .= " WHERE Email = :current_email";
-
-        $stmt = $pdo->prepare($sql);
-        return $stmt->execute($params);
-    } catch (PDOException $e) {
+        return $db->update('User', $current_email, $fields, $values);
+    } catch (Exception $e) {
         error_log("Database error in update_user_by_email: " . $e->getMessage());
         return false;
     }
@@ -86,10 +72,9 @@ function update_user_by_email($current_email, $name, $email, $room, $profile_pic
 function delete_user_by_email($email)
 {
     try {
-        $pdo = get_db_connection();
-        $stmt = $pdo->prepare("DELETE FROM User WHERE Email = :email");
-        return $stmt->execute([':email' => $email]);
-    } catch (PDOException $e) {
+        $db = get_db();
+        return $db->delete('User', $email);
+    } catch (Exception $e) {
         error_log("Database error in delete_user_by_email: " . $e->getMessage());
         return false;
     }
@@ -98,18 +83,14 @@ function delete_user_by_email($email)
 function check_email_exists($email, $exclude_email = null)
 {
     try {
-        $pdo = get_db_connection();
-
+        $db = get_db();
         if ($exclude_email) {
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM User WHERE Email = :email AND Email != :exclude_email");
-            $stmt->execute([':email' => $email, ':exclude_email' => $exclude_email]);
+            $result = $db->select('User', 'COUNT(*) as count', 'Email = ? AND Email != ?', [$email, $exclude_email]);
         } else {
-            $stmt = $pdo->prepare("SELECT COUNT(*) FROM User WHERE Email = :email");
-            $stmt->execute([':email' => $email]);
+            $result = $db->select('User', 'COUNT(*) as count', 'Email = ?', [$email]);
         }
-
-        return $stmt->fetchColumn() > 0;
-    } catch (PDOException $e) {
+        return $result[0]['count'] > 0;
+    } catch (Exception $e) {
         error_log("Database error in check_email_exists: " . $e->getMessage());
         return false;
     }
