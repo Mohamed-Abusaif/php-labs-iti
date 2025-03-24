@@ -3,11 +3,11 @@ session_start();
 require_once __DIR__ . '/utils/validation.php';
 require_once __DIR__ . '/utils/file_upload.php';
 require_once __DIR__ . '/models/user_model.php';
-require_once __DIR__ . '/views/users.php';
 
 // Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
+
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
